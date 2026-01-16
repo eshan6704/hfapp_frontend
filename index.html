@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>HF Space File Fetcher</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<style>
+html,body{height:100%;margin:0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;display:flex;flex-direction:column;background:#f5f7fa;}
+#controls{display:flex;flex-wrap:wrap;gap:6px;padding:8px 12px;border-bottom:2px solid #e0e6ed;background:rgba(255,255,255,0.95);}
+#controls label{font-weight:600;font-size:12px;min-width:40px;}
+#controls select,input{padding:4px 6px;font-size:13px;border:1px solid #ddd;border-radius:6px;min-width:80px;}
+#controls button{padding:6px 14px;font-size:13px;border:none;border-radius:6px;font-weight:600;cursor:pointer;background:linear-gradient(135deg,#4f46e5,#7c3aed);color:white;}
+#backendView{flex:1;overflow:auto;padding:12px;margin:4px;border-radius:8px;box-shadow:0 4px 16px rgba(0,0,0,0.08);background:white;}
+</style>
+</head>
+<body>
+
+<div id="controls">
+<label>Mode</label>
+<select id="mode" onchange="updateReqTypes()">
+<option value="stock">Stock</option>
+<option value="index">Index</option>
+<option value="screener">Screener</option>
+</select>
+
+<label>Req</label>
+<select id="req_type"></select>
+
+<label>Name</label>
+<input id="name">
+
+<label>From</label>
+<input id="date_start">
+
+<label>To</label>
+<input id="date_end">
+
+<label>Suffix</label>
+<input id="suffix" placeholder="optional">
+
+<button onclick="fetchData()">Fetch</button>
+<div id="fileDisplay">ready</div>
+</div>
+
+<div id="backendView">Ready</div>
+
+<script>
+const FETCH_API = "https://eshan6704-hfapp.hf.space/file";
+
+// Hard-coded req_types
+const REQ_TYPES = {
+    stock:["info","intraday","daily","nse_eq","qresult","result","balance","cashflow","dividend","split","other","stock_hist"],
+    index:["indices","open","preopen","fno","fiidii","events","index_highlow","stock_highlow","bhav","largedeals","bulkdeals","blockdeals","most_active","index_history","hlargedeals","pe_pb","total_returns"],
+    screener:["from_low","from_high","top_gainers","top_losers","volume_spike"]
+};
+
+function todayStr(){const d=new Date();return `${String(d.getDate()).padStart(2,"0")}-${String(d.getMonth()+1).padStart(2,"0")}-${d.getFullYear()}`;}
+function getFYStart(){const now=new Date();return now.getMonth()>=3?`01-04-${now.getFullYear()}`:`01-04-${now.getFullYear()-1}`;}
+
+function updateReqTypes(){
+    const mode=document.getElementById("mode").value;
+    const req=document.getElementById("req_type");
+    req.innerHTML="";
+    REQ_TYPES[mode].forEach(r=>{
+        const o=document.createElement("option"); o.value=r; o.textContent=r.replace(/_/g," ").toUpperCase();
+        req.appendChild(o);
+    });
+
+    const name=document.getElementById("name");
+    const start=document.getElementById("date_start");
+    const end=document.getElementById("date_end");
+    if(mode==="stock"){name.value="ITC"; start.value=getFYStart(); end.value=todayStr();}
+    else if(mode==="index"){name.value="NIFTY 50"; start.value=getFYStart(); end.value=todayStr();}
+    else{name.value="from_low"; start.value=""; end.value="";}
+}
+
+updateReqTypes();
+
+function buildFilename(){
+    const mode=document.getElementById("mode").value.trim();
+    const req=document.getElementById("req_type").value.trim();
+    const name=document.getElementById("name").value.trim();
+    const date_end=document.getElementById("date_end").value.trim();
+    const date_start=document.getElementById("date_start").value.trim();
+    const suffix=document.getElementById("suffix").value.trim();
+
+    let parts=[mode,req,name];
+    if(date_end) parts.push(date_end);
+    if(date_start) parts.push(date_start);
+    if(suffix) parts.push(suffix);
+
+    return "@"+parts.join("@")+".html";
+}
+
+async function fetchData(){
+    const filename=buildFilename();
+    document.getElementById("fileDisplay").textContent=filename;
+    const backendView=document.getElementById("backendView");
+    backendView.innerHTML=`Loading <b>${filename}</b> ...`;
+
+    try{
+        const res=await fetch(`${FETCH_API}?name=${encodeURIComponent(filename)}`);
+        if(!res.ok) throw new Error(res.status+" "+res.statusText);
+        const html=await res.text();
+        backendView.innerHTML=html;
+    }catch(err){
+        backendView.innerHTML=`❌ Failed: ${err.message}`;
+    }
+}
+</script>
+
+</body>
+</html>
