@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>HFApp Universal File Viewer</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<!-- pdf.js CDN -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+
+<style>
+html,body{height:100%;margin:0;font-family:Arial,sans-serif;display:flex;flex-direction:column;}
+#controls{display:flex;flex-wrap:wrap;gap:6px;padding:8px;border-bottom:2px solid #e0e6ed;background:#f5f7fa;}
+#controls label{font-weight:600;font-size:12px;min-width:40px;}
+#controls select,input{padding:4px 6px;font-size:13px;border:1px solid #ddd;border-radius:6px;min-width:80px;}
+#controls button{padding:6px 12px;font-size:13px;border:none;border-radius:6px;font-weight:600;background:linear-gradient(135deg,#4f46e5,#7c3aed);color:white;cursor:pointer;}
+#fileDisplay{margin-left:12px;font-weight:600;}
+#viewerContainer{flex:1;display:flex;flex-direction:column;overflow:auto;padding:8px;margin:4px;border-radius:8px;box-shadow:0 4px 16px rgba(0,0,0,0.08);background:white;}
+#htmlView,#csvView,#jsonView,#imageView,#pdfView{display:none;flex:1;width:100%;height:100%;overflow:auto;}
+#imageView img{user-select:none; pointer-events:none; max-width:100%; max-height:100%; transform-origin:center center;}
+#pdf-toolbar button,#img-toolbar button{padding:4px 6px;margin-right:4px;}
+#response table{border-collapse:collapse;width:100%;}
+#response th, #response td{border:1px solid #ccc;padding:4px 6px;font-size:13px;}
+#response th{background:#f0f0f0;}
+#response canvas{display:block;margin:10px auto;box-shadow:0 0 6px rgba(0,0,0,0.3);}
+.dark{background:#111;color:#eee;}
+.dark canvas{filter: invert(1) hue-rotate(180deg);}
+</style>
+</head>
+<body>
+
+<div id="controls">
+    <label>Mode</label>
+    <select id="mode" onchange="updateReqTypes()">
+        <option value="stock">Stock</option>
+        <option value="index">Index</option>
+        <option value="screener">Screener</option>
+    </select>
+
+    <label>Req</label>
+    <select id="req_type"></select>
+
+    <label>Name</label>
+    <input id="name">
+
+    <label>From</label>
+    <input id="date_start">
+
+    <label>To</label>
+    <input id="date_end">
+
+    <label>Suffix</label>
+    <input id="suffix" placeholder="optional">
+
+    <button onclick="fetchFile()">Fetch</button>
+    <span id="fileDisplay">ready</span>
+</div>
+
+<!-- PDF Toolbar -->
+<div id="pdf-toolbar" style="display:none;margin-bottom:6px;">
+  <button onclick="prevPage()">◀</button>
+  <button onclick="nextPage()">▶</button>
+  <input id="pageInput" type="number" min="1" style="width:50px;" onchange="jumpToPage(this.value)">
+  <button onclick="zoomOut()">−</button>
+  <button onclick="zoomIn()">+</button>
+  <button onclick="fitWidth()">Fit</button>
+  <button onclick="toggleMode()">Scroll</button>
+  <input id="searchText" placeholder="Search" onkeydown="if(event.key==='Enter') searchPDF()">
+  <button onclick="toggleDark()">🌙</button>
+  <button onclick="downloadPDF()">⬇</button>
+  <span id="pageInfo"></span>
+</div>
+
+<!-- Image Toolbar -->
+<div id="img-toolbar" style="display:none;margin-bottom:6px;">
+  <button onclick="imgZoomOut()">−</button>
+  <button onclick="imgZoomIn()">+</button>
+  <button onclick="imgFit()">Fit</button>
+  <button onclick="imgActual()">1:1</button>
+  <button onclick="imgRotate()">⟳</button>
+  <button onclick="imgReset()">Reset</button>
+</div>
+
+<div id="viewerContainer">
+    <div id="htmlView"></div>
+    <div id="csvView"></div>
+    <div id="jsonView"></div>
+    <div id="imageView"><img id="imageEl"></div>
+    <div id="pdfView"><div id="response"></div><div id="thumbs" style="width:120px;overflow:auto;display:none;"></div></div>
+</div>
+
+<script>
+const HF_API = "https://eshan6704-hfapp.hf.space/file";
+
+/* ---------------- Req_type and Defaults ---------------- */
+const REQ_TYPES = {
+    stock:["info","intraday","daily","nse_eq","qresult","result","balance","cashflow","dividend","split","other","stock_hist"],
+    index:["indices","open","preopen","fno","fiidii","events","index_highlow","stock_highlow","bhav","largedeals","bulkdeals","blockdeals","most_active","index_history","hlargedeals","pe_pb","total_returns"],
+    screener:["from_low","from_high","top_gainers","top_losers","volume_spike"]
+};
+
+function todayStr(){const d=new Date();return `${String(d.getDate()).padStart(2,"0")}-${String(d.getMonth()+1).padStart(2,"0")}-${d.getFullYear()}`;}
+function getFYStart(){const now=new Date();return now.getMonth()>=3?`01-04-${now.getFullYear()}`:`01-04-${now.getFullYear()-1}`;}
+
+function updateReqTypes(){
+    const mode=document.getElementById("mode").value;
+    const req=document.getElementById("req_type");
+    req.innerHTML="";
+    REQ_TYPES[mode].forEach(r=>{ const o=document.createElement("option"); o.value=r; o.textContent=r.replace(/_/g," ").toUpperCase(); req.appendChild(o); });
+
+    const name=document.getElementById("name");
+    const start=document.getElementById("date_start");
+    const end=document.getElementById("date_end");
+    if(mode==="stock"){name.value="ITC"; start.value=getFYStart(); end.value=todayStr();}
+    else if(mode==="index"){name.value="NIFTY 50"; start.value=getFYStart(); end.value=todayStr();}
+    else{name.value="from_low"; start.value=""; end.value="";}
+}
+
+updateReqTypes();
+
+function buildFilename(){
+    const mode=document.getElementById("mode").value.trim();
+    const req=document.getElementById("req_type").value.trim();
+    const name=document.getElementById("name").value.trim();
+    const date_end=document.getElementById("date_end").value.trim();
+    const date_start=document.getElementById("date_start").value.trim();
+    const suffix=document.getElementById("suffix").value.trim();
+
+    let parts=[mode,req,name];
+    if(date_end) parts.push(date_end);
+    if(date_start) parts.push(date_start);
+    if(suffix) parts.push(suffix);
+
+    return "@"+parts.join("@");
+}
+
+function hideAllViews(){
+    document.getElementById("htmlView").style.display="none";
+    document.getElementById("csvView").style.display="none";
+    document.getElementById("jsonView").style.display="none";
+    document.getElementById("imageView").style.display="none";
+    document.getElementById("pdf-toolbar").style.display="none";
+    document.getElementById("img-toolbar").style.display="none";
+    document.getElementById("thumbs").style.display="none";
+}
+
+/* ---------------- Fetch File ---------------- */
+async function fetchFile(){
+    const base = buildFilename();
+    const exts=[".html",".csv",".json",".pdf",".png",".jpg",".jpeg"];
+    hideAllViews();
+    let found=false;
+
+    for(const ext of exts){
+        const filename=base+ext;
+        try{
+            const res=await fetch(`${HF_API}?name=${encodeURIComponent(filename)}`);
+            if(!res.ok) continue;
+            document.getElementById("fileDisplay").textContent=filename;
+            found=true;
+
+            if(ext===".html"){document.getElementById("htmlView").innerHTML=await res.text(); document.getElementById("htmlView").style.display="block";}
+            else if(ext===".csv"){ const text=await res.text(); renderCSV(text); document.getElementById("csvView").style.display="block";}
+            else if(ext===".json"){ const text=await res.text(); renderJSON(text); document.getElementById("jsonView").style.display="block";}
+            else if(ext===".pdf"){ const blob=await res.blob(); loadPDF(URL.createObjectURL(blob)); break;}
+            else if([".png",".jpg",".jpeg"].includes(ext)){ loadImage(filename); break;}
+        }catch(e){ continue; }
+    }
+    if(!found) document.getElementById("htmlView").innerHTML="❌ File not found"; document.getElementById("htmlView").style.display="block";
+}
+
+/* ---------------- CSV / JSON ---------------- */
+function renderCSV(text){
+    const rows=text.trim().split("\n").map(r=>r.split(","));
+    let html="<table>";
+    rows.forEach((row,i)=>{ html+="<tr>"; row.forEach(col=>{ html+=i===0?`<th>${col}</th>`:`<td>${col}</td>`}); html+="</tr>";});
+    html+="</table>";
+    document.getElementById("csvView").innerHTML=html;
+}
+function renderJSON(text){
+    try{ document.getElementById("jsonView").innerHTML=`<pre>${JSON.stringify(JSON.parse(text),null,2)}</pre>`; }catch{ document.getElementById("jsonView").innerHTML=`<pre>${text}</pre>`;}
+}
+
+/* ---------------- PDF.js ---------------- */
+pdfjsLib.GlobalWorkerOptions.workerSrc="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+let pdfDoc, currentPage=1, scale=1.3, pdfUrl, scrollMode=false, darkMode=false;
+const response=document.getElementById("response"), thumbs=document.getElementById("thumbs");
+async function loadPDF(url){pdfUrl=url; pdfDoc=await pdfjsLib.getDocument(url).promise; currentPage=1; scale=1.3; document.getElementById("pdf-toolbar").style.display="block"; document.getElementById("thumbs").style.display="block"; renderThumbnails(); renderPDF();}
+async function renderPDF(){response.innerHTML=""; if(scrollMode){ for(let i=1;i<=pdfDoc.numPages;i++) await renderPage(i);} else await renderPage(currentPage); pageInfo.innerText=`Page ${currentPage} / ${pdfDoc.numPages}`; pageInput.value=currentPage;}
+async function renderPage(num){const page=await pdfDoc.getPage(num); const viewport=page.getViewport({scale}); const canvas=document.createElement("canvas"); canvas.width=viewport.width; canvas.height=viewport.height; response.appendChild(canvas); await page.render({canvasContext:canvas.getContext("2d"),viewport}).promise;}
+async function renderThumbnails(){thumbs.innerHTML=""; for(let i=1;i<=pdfDoc.numPages;i++){const page=await pdfDoc.getPage(i); const vp=page.getViewport({scale:0.2}); const c=document.createElement("canvas"); c.width=vp.width; c.height=vp.height; await page.render({canvasContext:c.getContext("2d"),viewport:vp}).promise; c.onclick=()=>{currentPage=i; renderPDF();}; thumbs.appendChild(c);}}
+function nextPage(){if(currentPage<pdfDoc.numPages) currentPage++; renderPDF();}
+function prevPage(){if(currentPage>1) currentPage--; renderPDF();}
+function jumpToPage(p){currentPage=Math.max(1,Math.min(pdfDoc.numPages,p)); renderPDF();}
+function zoomIn(){scale+=0.2; renderPDF();}
+function zoomOut(){scale=Math.max(0.4,scale-0.2); renderPDF();}
+function fitWidth(){scale=response.clientWidth/800; renderPDF();}
+function toggleMode(){scrollMode=!scrollMode; renderPDF();}
+function searchPDF(){const q=searchText.value.toLowerCase(); (async()=>{for(let i=1;i<=pdfDoc.numPages;i++){const page=await pdfDoc.getPage(i);const text=await page.getTextContent();if(text.items.some(t=>t.str.toLowerCase().includes(q))){currentPage=i;renderPDF();return;}} alert("Not found");})();}
+function toggleDark(){darkMode=!darkMode; document.body.classList.toggle("dark",darkMode);}
+function downloadPDF(){window.open(pdfUrl,"_blank");}
+
+/* ---------------- Image Viewer ---------------- */
+let imgScale=1,imgRotateDeg=0,imgX=0,imgY=0,isDragging=false,startX,startY,imgEl;
+function loadImage(name){
+    hideAllViews();
+    document.getElementById("img-toolbar").style.display="block";
+    const container=document.createElement("div");
+    container.id="img-container"; container.style.width="100%"; container.style.height="100%"; container.style.overflow="hidden"; container.style.cursor="grab";
+    imgEl=document.createElement("img"); imgEl.src=`${HF_API}?name=${encodeURIComponent(name)}`; imgEl.onload=imgFit;
+    container.appendChild(imgEl);
+    document.getElementById("imageView").appendChild(container);
+    document.getElementById("imageView").style.display="block";
+
+    container.onmousedown=e=>{isDragging=true; startX=e.clientX-imgX; startY=e.clientY-imgY; container.style.cursor="grabbing";};
+    window.onmouseup=()=>{isDragging=false; container.style.cursor="grab";};
+    window.onmousemove=e=>{if(!isDragging)return; imgX=e.clientX-startX; imgY=e.clientY-startY; applyImgTransform();};
+    container.onwheel=e=>{e.preventDefault(); e.deltaY<0?imgZoomIn():imgZoomOut();};
+}
+function applyImgTransform(){imgEl.style.transform=`translate(${imgX}px,${imgY}px) scale(${imgScale}) rotate(${imgRotateDeg}deg)`;}
+function imgZoomIn(){imgScale+=0.15; applyImgTransform();}
+function imgZoomOut(){imgScale=Math.max(0.1,imgScale-0.15); applyImgTransform();}
+function imgFit(){const cw=response.clientWidth,ch=response.clientHeight,iw=imgEl.naturalWidth,ih=imgEl.naturalHeight; imgScale=Math.min(cw/iw,ch/ih); imgX=imgY=0; imgRotateDeg=0; applyImgTransform();}
+function imgActual(){imgScale=1; imgX=imgY=0; applyImgTransform();}
+function imgRotate(){imgRotateDeg=(imgRotateDeg+90)%360; applyImgTransform();}
+function imgReset(){imgScale=1; imgX=imgY=0; imgRotateDeg=0; applyImgTransform();}
+window.addEventListener("keydown",e=>{if(!imgEl)return; if(e.key=="+")imgZoomIn(); if(e.key=="-")imgZoomOut(); if(e.key=="0")imgReset(); if(e.key=="r")imgRotate();});
+</script>
+</body>
+</html>
