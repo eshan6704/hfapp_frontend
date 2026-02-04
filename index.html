@@ -5,70 +5,66 @@
 <title>HF File Frontend</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-<!-- PDF.js -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
-
 <style>
-html,body{
-  height:100%;margin:0;
-  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif;
-  background:#f5f7fa;
+html, body {
+  height: 100%;
+  margin: 0;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
+  background: #f0f2f5;
+  color: #333;
 }
-body{display:flex;flex-direction:column}
-
-#controls{
-  display:flex;flex-wrap:wrap;gap:6px;align-items:center;
-  padding:8px 10px;
-  background:#fff;
-  border-bottom:1px solid #ddd;
+body {
+  display: flex;
+  flex-direction: column;
 }
 
-#controls label{font-size:12px;font-weight:600;color:#444}
-#controls select,#controls input{
-  font-size:12px;padding:5px 6px;
-  border:1px solid #ccc;border-radius:4px;
-}
-#controls button{
-  padding:6px 12px;font-size:12px;
-  border:none;border-radius:4px;
-  background:#4f46e5;color:#fff;font-weight:600;
-  cursor:pointer;
-}
-#controls button:disabled{opacity:.6}
-
-#status{
-  margin-left:auto;
-  font-family:monospace;
-  font-size:12px;
-  background:#eef2ff;
-  padding:4px 6px;
-  border-radius:4px;
-  white-space:nowrap;
+#controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 16px;
+  background: #fff;
+  border-bottom: 1px solid #ddd;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+  position: sticky;
+  top: 0;
+  z-index: 10;
 }
 
-#response{
-  flex:1;
-  background:#fff;
-  margin:6px;
-  border-radius:6px;
-  border:1px solid #ccc;
-  overflow:auto;
-  padding:8px;
+#controls select, #controls input {
+  font-size: 13px;
+  padding: 6px 8px;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+}
+#controls button {
+  padding: 6px 14px;
+  font-size: 13px;
+  border: none;
+  border-radius: 6px;
+  background: #4f46e5;
+  color: #fff;
+  cursor: pointer;
+}
+#status {
+  margin-left: auto;
+  font-family: monospace;
+  font-size: 12px;
+  background: #eef2ff;
+  padding: 4px 8px;
+  border-radius: 6px;
 }
 
-/* tables */
-table{border-collapse:collapse;width:100%}
-th,td{border:1px solid #ccc;padding:4px 6px;font-size:12px}
-th{background:#f1f5f9}
-
-/* pdf */
-canvas{display:block;margin:10px auto;box-shadow:0 0 6px rgba(0,0,0,.3)}
-
-/* image */
-#response img{
-  max-width:100%;
-  display:block;
-  margin:auto;
+#response {
+  flex: 1;
+  background: #fff;
+  margin: 8px 12px 12px;
+  border-radius: 8px;
+  border: 1px solid #ddd;
+  overflow: auto;
+  padding: 12px;
+  min-height: 300px;
 }
 </style>
 </head>
@@ -76,27 +72,20 @@ canvas{display:block;margin:10px auto;box-shadow:0 0 6px rgba(0,0,0,.3)}
 <body>
 
 <div id="controls">
-  <label>Mode</label>
   <select id="mode">
     <option value="stock">stock</option>
     <option value="index">index</option>
     <option value="screener">screener</option>
   </select>
 
-  <label>Req</label>
   <select id="req_type"></select>
 
-  <label>Name</label>
-  <input id="name" style="width:90px">
+  <input id="name" style="width:75px">
 
-  <label>From</label>
-  <input id="date_start" style="width:90px">
+  <input id="date_end" style="width:70px">
+  <input id="date_start" style="width:70px; display:none">
 
-  <label>To</label>
-  <input id="date_end" style="width:90px">
-
-  <label>Suffix</label>
-  <input id="suffix" style="width:80px">
+  <input id="suffix" style="width:90px; display:none">
 
   <button id="fetchBtn" onclick="fetchFile()">Fetch</button>
 
@@ -106,25 +95,14 @@ canvas{display:block;margin:10px auto;box-shadow:0 0 6px rgba(0,0,0,.3)}
 <div id="response"></div>
 
 <script>
-/* ---------------- CONFIG ---------------- */
 const HF_API = "https://eshan6704-hfapp.hf.space";
 
-/* ---------------- REQ TYPES (HARDCODED) ---------------- */
 const REQ_TYPES = {
-  stock: [
-    "info","intraday","daily","nse_eq","qresult","result",
-    "balance","cashflow","dividend","split","other","stock_hist"
-  ],
-  index: [
-    "indices","open","preopen","fno","fiidii","events",
-    "index_highlow","stock_highlow","bhav","largedeals",
-    "bulkdeals","blockdeals","most_active","index_history",
-    "hlargedeals","pe_pb","total_returns"
-  ],
+  stock: ["info","intraday","daily","nse_eq","qresult","result","balance","cashflow","dividend","split","other","stock_hist"],
+  index: ["indices","open","preopen","fno","fiidii","events","index_highlow","stock_highlow","bhav","largedeals","bulkdeals","blockdeals","most_active","index_history","hlargedeals","pe_pb","total_returns"],
   screener: ["from_low","from_high","volume","delivery"]
 };
 
-/* ---------------- ELEMENTS ---------------- */
 const mode=document.getElementById("mode");
 const req_type=document.getElementById("req_type");
 const name=document.getElementById("name");
@@ -135,22 +113,11 @@ const statusBar=document.getElementById("status");
 const response=document.getElementById("response");
 const fetchBtn=document.getElementById("fetchBtn");
 
-/* ---------------- HELPERS ---------------- */
-function nowTime(){
-  return new Date().toLocaleTimeString("en-IN",{hour12:false});
-}
-function fyStart(){
-  const d=new Date();
-  const y=d.getMonth()>=3?d.getFullYear():d.getFullYear()-1;
-  return `01-04-${y}`;
-}
-function today(){
-  const d=new Date();
-  return `${String(d.getDate()).padStart(2,"0")}-${String(d.getMonth()+1).padStart(2,"0")}-${d.getFullYear()}`;
-}
+function nowTime(){ return new Date().toLocaleTimeString("en-IN",{hour12:false}); }
+function fyStart(){ const d=new Date(); const y=d.getMonth()>=3?d.getFullYear():d.getFullYear()-1; return `01-04-${y}`; }
+function today(){ const d=new Date(); return `${String(d.getDate()).padStart(2,"0")}-${String(d.getMonth()+1).padStart(2,"0")}-${d.getFullYear()}`; }
 function setStatus(t){statusBar.textContent=t}
 
-/* ---------------- DEFAULTS ---------------- */
 function updateReqTypes(){
   req_type.innerHTML="";
   REQ_TYPES[mode.value].forEach(r=>{
@@ -169,11 +136,11 @@ function updateReqTypes(){
     name.value="ITC";
     date_start.value=fyStart();
     date_end.value=today();
-  }else if(mode.value==="index"){
+  } else if(mode.value==="index"){
     name.value="NIFTY 50";
     date_start.value=fyStart();
     date_end.value=today();
-  }else{
+  } else{
     name.value="";
     date_start.value="";
     date_end.value="";
@@ -184,7 +151,6 @@ function updateReqTypes(){
 mode.addEventListener("change",updateReqTypes);
 window.addEventListener("load",updateReqTypes);
 
-/* ---------------- FETCH ---------------- */
 async function fetchFile(){
   const m=mode.value;
   const r=req_type.value;
@@ -210,72 +176,17 @@ async function fetchFile(){
     const text=await blob.text();
     const dt=Math.round(performance.now()-t0);
     setStatus(`${nowTime()} | DONE | ${(blob.size/1024).toFixed(0)} KB | ${dt} ms | ${fname}`);
-    renderByType(fname,blob,text);
-  }catch(e){
+    renderByType(text);
+  } catch(e){
     setStatus(`${nowTime()} | ERROR | ${fname}`);
     response.innerHTML=`<pre style="color:red">${e.message}</pre>`;
-  }finally{
+  } finally{
     fetchBtn.disabled=false;
   }
 }
 
-/* ---------------- RENDER ---------------- */
-function renderByType(name,blob,text){
-  response.innerHTML="";
-
-  if(name.endsWith(".pdf")){
-    loadPDF(URL.createObjectURL(blob));
-    return;
-  }
-
-  if(name.match(/\.(png|jpg|jpeg)$/i)){
-    const img=document.createElement("img");
-    img.src=URL.createObjectURL(blob);
-    response.appendChild(img);
-    return;
-  }
-
-  if(name.endsWith(".json")){
-    try{response.innerHTML=`<pre>${JSON.stringify(JSON.parse(text),null,2)}</pre>`;}
-    catch{response.innerHTML=`<pre>${text}</pre>`}
-    return;
-  }
-
-  if(name.endsWith(".csv")){
-    const rows=text.trim().split("\n").map(r=>r.split(","));
-    let h="<table>";
-    rows.forEach((row,i)=>{
-      h+="<tr>";
-      row.forEach(c=>h+=i?`<td>${c}</td>`:`<th>${c}</th>`);
-      h+="</tr>";
-    });
-    h+="</table>";
-    response.innerHTML=h;
-    return;
-  }
-
-  if(name.endsWith(".html")){
-    response.innerHTML=text;
-    return;
-  }
-
-  response.innerHTML=`<pre>${text}</pre>`;
-}
-
-/* ---------------- PDF ---------------- */
-pdfjsLib.GlobalWorkerOptions.workerSrc=
-  "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
-async function loadPDF(url){
-  response.innerHTML="";
-  const pdf=await pdfjsLib.getDocument(url).promise;
-  for(let i=1;i<=pdf.numPages;i++){
-    const p=await pdf.getPage(i);
-    const v=p.getViewport({scale:1.2});
-    const c=document.createElement("canvas");
-    c.width=v.width;c.height=v.height;
-    response.appendChild(c);
-    await p.render({canvasContext:c.getContext("2d"),viewport:v}).promise;
-  }
+function renderByType(text){
+  response.innerHTML = text; // always treat response as HTML
 }
 </script>
 
