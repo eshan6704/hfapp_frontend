@@ -1,0 +1,673 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Financial Data API</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+<style>
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html, body {
+  height: 100%;
+  font-family: 'Inter', sans-serif;
+  background: #f1f5f9;
+  overflow: hidden;
+}
+
+.app {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  position: relative;
+}
+
+/* Auto-hide Toolbar */
+.toolbar {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  background: rgba(255, 255, 255, 0.98);
+  border-bottom: 1px solid #e2e8f0;
+  padding: 6px 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
+  z-index: 100;
+  transition: transform 0.3s ease;
+  transform: translateY(0);
+}
+
+.toolbar.hidden {
+  transform: translateY(-100%);
+}
+
+.toolbar:hover, .toolbar.show {
+  transform: translateY(0) !important;
+}
+
+.hover-zone {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 20px;
+  z-index: 99;
+}
+
+.hover-zone:hover + .toolbar,
+.toolbar:hover {
+  transform: translateY(0) !important;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  position: relative;
+}
+
+.form-group label {
+  font-size: 9px;
+  text-transform: uppercase;
+  color: #64748b;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.key-hint {
+  background: #e2e8f0;
+  color: #475569;
+  padding: 1px 4px;
+  border-radius: 3px;
+  font-size: 8px;
+  font-weight: 700;
+}
+
+.toolbar select, .toolbar input {
+  padding: 4px 8px;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  font-size: 12px;
+  height: 28px;
+  background: #fff;
+  outline: none;
+  transition: all 0.2s;
+}
+
+.toolbar select:focus, .toolbar input:focus {
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
+}
+
+.toolbar select { min-width: 140px; cursor: pointer; }
+.toolbar input { width: 80px; }
+.toolbar input.wide { width: 100px; }
+
+.source-select {
+  background: #eff6ff !important;
+  border-color: #3b82f6 !important;
+  font-weight: 500;
+  min-width: 160px !important;
+}
+
+.btn {
+  padding: 4px 12px;
+  background: #2563eb;
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  height: 28px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 14px;
+}
+
+.btn:hover:not(:disabled) { background: #1d4ed8; }
+.btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.status {
+  margin-left: auto;
+  font-size: 11px;
+  color: #64748b;
+  font-family: monospace;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.status-badge {
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-weight: 600;
+  font-size: 10px;
+  text-transform: uppercase;
+}
+
+.idle { background: #f1f5f9; color: #64748b; }
+.fetching { background: #dbeafe; color: #2563eb; }
+.success { background: #d1fae5; color: #059669; }
+.error { background: #fee2e2; color: #dc2626; }
+
+.pulse {
+  width: 6px;
+  height: 6px;
+  background: currentColor;
+  border-radius: 50%;
+  animation: pulse 1.5s infinite;
+  display: inline-block;
+  margin-right: 4px;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.3; }
+}
+
+.hint-bar {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%) translateY(-100%);
+  background: rgba(0,0,0,0.7);
+  color: #fff;
+  padding: 4px 12px;
+  border-radius: 0 0 12px 12px;
+  font-size: 11px;
+  z-index: 98;
+  transition: transform 0.3s ease;
+  pointer-events: none;
+}
+
+.toolbar.hidden ~ .hint-bar {
+  transform: translateX(-50%) translateY(0);
+}
+
+/* Response Area */
+.response-wrapper {
+  flex: 1;
+  padding: 8px;
+  padding-top: 12px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.response-box {
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+
+.response-header {
+  padding: 6px 12px;
+  background: #f8fafc;
+  border-bottom: 1px solid #e2e8f0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 12px;
+  color: #64748b;
+}
+
+.response-actions {
+  display: flex;
+  gap: 4px;
+}
+
+.icon-btn {
+  width: 24px;
+  height: 24px;
+  border: none;
+  background: transparent;
+  color: #64748b;
+  cursor: pointer;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.icon-btn:hover {
+  background: #e2e8f0;
+  color: #334155;
+}
+
+.response-content {
+  flex: 1;
+  overflow: auto;
+  padding: 12px;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.response-content pre {
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  font-family: 'SF Mono', Consolas, monospace;
+  background: #f8fafc;
+  padding: 12px;
+  border-radius: 6px;
+  border: 1px solid #e2e8f0;
+  margin: 0;
+}
+
+.empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: #94a3b8;
+  text-align: center;
+}
+
+.empty i {
+  font-size: 48px;
+  margin-bottom: 12px;
+  opacity: 0.3;
+}
+
+.empty p {
+  font-size: 14px;
+}
+
+.error-box {
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  color: #991b1b;
+  padding: 12px;
+  border-radius: 6px;
+  font-size: 12px;
+}
+
+.hidden { display: none !important; }
+
+/* Keyboard help overlay */
+.keyboard-help {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  background: rgba(15, 23, 42, 0.9);
+  color: #fff;
+  padding: 16px;
+  border-radius: 12px;
+  font-size: 12px;
+  z-index: 200;
+  box-shadow: 0 10px 15px -3px rgba(0,0,0,0.3);
+  max-width: 280px;
+  backdrop-filter: blur(10px);
+  transform: translateX(120%);
+  transition: transform 0.3s ease;
+}
+
+.keyboard-help.show {
+  transform: translateX(0);
+}
+
+.keyboard-help h4 {
+  margin-bottom: 12px;
+  font-size: 14px;
+  color: #60a5fa;
+}
+
+.keyboard-help kbd {
+  background: rgba(255,255,255,0.1);
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-family: monospace;
+  font-weight: 600;
+}
+
+.keyboard-help .key-row {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 6px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid rgba(255,255,255,0.1);
+}
+
+.keyboard-help .key-row:last-child {
+  border-bottom: none;
+  margin-bottom: 0;
+}
+
+.help-toggle {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  width: 40px;
+  height: 40px;
+  background: #2563eb;
+  color: #fff;
+  border: none;
+  border-radius: 50%;
+  cursor: pointer;
+  font-size: 18px;
+  z-index: 201;
+  box-shadow: 0 4px 6px rgba(0,0,0,0.2);
+  transition: all 0.2s;
+}
+
+.help-toggle:hover {
+  transform: scale(1.1);
+  background: #1d4ed8;
+}
+
+@media (max-width: 768px) {
+  .toolbar {
+    padding: 4px;
+    gap: 4px;
+  }
+  .form-group label {
+    display: none;
+  }
+  .btn, .status {
+    margin-top: 0;
+  }
+}
+</style>
+</head>
+
+<body>
+
+<div class="app">
+  <div class="hover-zone"></div>
+  
+  <div class="toolbar" id="toolbar">
+    <div class="form-group">
+      <label>Source <span class="key-hint">S</span></label>
+      <select id="source" class="source-select" data-key="s" tabindex="1">
+        <option value="https://hfapp--eshanpatel8.replit.app">🚀 Replit</option>
+        <option value="https://hfapp-jva5.onrender.com">⏳ Render</option>
+        <option value="https://eshan6704-hfapp.hf.space">🤗 HF Space</option>
+      </select>
+    </div>
+
+    <div class="form-group">
+      <label>Mode <span class="key-hint">M</span></label>
+      <select id="mode" data-key="m" tabindex="2">
+        <option value="stock">Stock</option>
+        <option value="index">Index</option>
+        <option value="screener">Screener</option>
+      </select>
+    </div>
+
+    <div class="form-group">
+      <label>Type <span class="key-hint">T</span></label>
+      <select id="req_type" data-key="t" tabindex="3"></select>
+    </div>
+
+    <div class="form-group">
+      <label>Symbol <span class="key-hint">N</span></label>
+      <input type="text" id="name" class="wide" data-key="n" tabindex="4" placeholder="e.g. ITC">
+    </div>
+
+    <div class="form-group">
+      <label>Date <span class="key-hint">D</span></label>
+      <input type="text" id="date_end" data-key="d" tabindex="5" placeholder="DD-MM-YYYY">
+    </div>
+
+    <input type="text" id="date_start" class="hidden" tabindex="6">
+    <input type="text" id="suffix" class="hidden" tabindex="7">
+
+    <button id="fetchBtn" class="btn" onclick="fetchData()" tabindex="8" accesskey="Enter">
+      <i class="fas fa-download"></i> Fetch <span class="key-hint" style="background:rgba(255,255,255,0.2);color:#fff;margin-left:4px">↵</span>
+    </button>
+
+    <div class="status">
+      <span id="statusBadge" class="status-badge idle">Ready</span>
+      <span id="statusInfo"></span>
+    </div>
+  </div>
+
+  <div class="hint-bar">
+    <i class="fas fa-chevron-down" style="margin-right:4px"></i> Hover top to show controls
+  </div>
+
+  <div class="response-wrapper">
+    <div class="response-box">
+      <div class="response-header">
+        <span><i class="fas fa-terminal" style="margin-right:6px"></i>Response</span>
+        <div class="response-actions">
+          <button class="icon-btn" onclick="copyResponse()" title="Copy (Ctrl+C)"><i class="fas fa-copy"></i></button>
+          <button class="icon-btn" onclick="clearResponse()" title="Clear (Esc)"><i class="fas fa-trash"></i></button>
+        </div>
+      </div>
+      <div class="response-content" id="response">
+        <div class="empty">
+          <i class="fas fa-database"></i>
+          <p>Select parameters and click Fetch<br><small style="opacity:0.6">Press ? for keyboard shortcuts</small></p>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Keyboard Help -->
+<button class="help-toggle" onclick="toggleHelp()" title="Keyboard shortcuts">?</button>
+<div class="keyboard-help" id="keyboardHelp">
+  <h4><i class="fas fa-keyboard" style="margin-right:8px"></i>Keyboard Shortcuts</h4>
+  <div class="key-row"><span>Focus Source</span> <kbd>S</kbd></div>
+  <div class="key-row"><span>Focus Mode</span> <kbd>M</kbd></div>
+  <div class="key-row"><span>Focus Type</span> <kbd>T</kbd></div>
+  <div class="key-row"><span>Focus Symbol</span> <kbd>N</kbd></div>
+  <div class="key-row"><span>Focus Date</span> <kbd>D</kbd></div>
+  <div class="key-row"><span>Fetch Data</span> <kbd>Enter</kbd></div>
+  <div class="key-row"><span>Clear / Show Toolbar</span> <kbd>Esc</kbd></div>
+  <div class="key-row"><span>Next Field</span> <kbd>Tab</kbd></div>
+  <div class="key-row"><span>Prev Field</span> <kbd>Shift+Tab</kbd></div>
+  <div class="key-row"><span>Toggle Help</span> <kbd>?</kbd></div>
+</div>
+
+<script>
+const $ = id => document.getElementById(id);
+const toolbar = $('toolbar');
+
+const REQ_TYPES = {
+  stock: ['info','intraday','daily','nse_eq','qresult','result','balance','cashflow','dividend','split','other','stock_hist'],
+  index: ['indices','open','preopen','fno','fiidii','events','index_highlow','stock_highlow','bhav','largedeals','bulkdeals','blockdeals','most_active','index_history','hlargedeals','pe_pb','total_returns'],
+  screener: ['from_low','from_high','volume','delivery']
+};
+
+const fields = {
+  s: 'source',
+  m: 'mode',
+  t: 'req_type',
+  n: 'name',
+  d: 'date_end'
+};
+
+const fyStart = () => {
+  const d = new Date();
+  const y = d.getMonth() >= 3 ? d.getFullYear() : d.getFullYear() - 1;
+  return `01-04-${y}`;
+};
+
+const today = () => {
+  const d = new Date();
+  return `${String(d.getDate()).padStart(2,'0')}-${String(d.getMonth()+1).padStart(2,'0')}-${d.getFullYear()}`;
+};
+
+const setStatus = (state, text, info = '') => {
+  const badge = $('statusBadge');
+  badge.className = `status-badge ${state}`;
+  badge.innerHTML = state === 'fetching' ? '<span class="pulse"></span>Loading' : text;
+  $('statusInfo').textContent = info;
+};
+
+const updateReqTypes = () => {
+  const mode = $('mode').value;
+  const select = $('req_type');
+  select.innerHTML = '';
+  
+  REQ_TYPES[mode].forEach(type => {
+    const opt = document.createElement('option');
+    opt.value = type;
+    opt.textContent = type.replace(/_/g, ' ');
+    if ((mode === 'stock' && type === 'info') || 
+        (mode === 'index' && type === 'indices') || 
+        (mode === 'screener' && type === 'from_low')) opt.selected = true;
+    select.appendChild(opt);
+  });
+
+  if (mode === 'stock') {
+    $('name').value = 'ITC';
+    $('date_start').value = fyStart();
+    $('date_end').value = today();
+  } else if (mode === 'index') {
+    $('name').value = 'NIFTY 50';
+    $('date_start').value = fyStart();
+    $('date_end').value = today();
+  } else {
+    $('name').value = '';
+    $('date_start').value = '';
+    $('date_end').value = '';
+  }
+};
+
+$('mode').addEventListener('change', updateReqTypes);
+window.addEventListener('load', updateReqTypes);
+
+// Keyboard navigation
+document.addEventListener('keydown', (e) => {
+  // Ignore if typing in input (except specific shortcuts)
+  if (e.target.tagName === 'INPUT' && e.key !== 'Enter' && e.key !== 'Escape') return;
+  
+  const key = e.key.toLowerCase();
+  
+  // Field shortcuts
+  if (fields[key] && !e.ctrlKey && !e.altKey) {
+    e.preventDefault();
+    $(fields[key]).focus();
+    showToolbar();
+  }
+  
+  // Enter to fetch
+  if (e.key === 'Enter' && e.target.tagName !== 'BUTTON') {
+    e.preventDefault();
+    fetchData();
+  }
+  
+  // Escape to clear/show toolbar
+  if (e.key === 'Escape') {
+    e.preventDefault();
+    if ($('response').innerText !== 'Select parameters and click Fetch\nPress ? for keyboard shortcuts') {
+      clearResponse();
+    } else {
+      showToolbar();
+      $('source').focus();
+    }
+  }
+  
+  // Help toggle
+  if (key === '?') {
+    e.preventDefault();
+    toggleHelp();
+  }
+});
+
+function toggleHelp() {
+  $('keyboardHelp').classList.toggle('show');
+}
+
+const showToolbar = () => {
+  toolbar.classList.remove('hidden');
+};
+
+const hideToolbar = () => {
+  toolbar.classList.add('hidden');
+};
+
+async function fetchData() {
+  const baseUrl = $('source').value;
+  const mode = $('mode').value;
+  const reqType = $('req_type').value;
+  const name = $('name').value.trim();
+  const dateStart = $('date_start').value;
+  const dateEnd = $('date_end').value;
+  const suffix = $('suffix').value.trim();
+
+  let filename = `@${mode}@${reqType}`;
+  if (name) filename += `@${name}`;
+  if (dateEnd) filename += `@${dateEnd}`;
+  if (dateStart) filename += `@${dateStart}`;
+  if (suffix) filename += `@${suffix}`;
+  filename += '.html';
+
+  const sourceName = $('source').options[$('source').selectedIndex].text;
+  setStatus('fetching', '', filename);
+  $('fetchBtn').disabled = true;
+  
+  setTimeout(hideToolbar, 800);
+  
+  $('response').innerHTML = '<div class="empty"><div class="pulse" style="width:40px;height:40px;margin-bottom:12px"></div><p>Loading...</p></div>';
+
+  const t0 = performance.now();
+
+  try {
+    const res = await fetch(`${baseUrl}/file?name=${encodeURIComponent(filename)}`);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    
+    const blob = await res.blob();
+    const text = await blob.text();
+    const dt = Math.round(performance.now() - t0);
+    const size = (blob.size / 1024).toFixed(1);
+
+    renderResponse(text);
+    setStatus('success', 'Done', `${sourceName} • ${size}KB • ${dt}ms`);
+
+  } catch (err) {
+    setStatus('error', 'Error', err.message);
+    $('response').innerHTML = `<div class="error-box"><strong>Error:</strong> ${err.message}<br><small>${filename}</small></div>`;
+    showToolbar();
+  } finally {
+    $('fetchBtn').disabled = false;
+  }
+}
+
+function renderResponse(text) {
+  const isHtml = text.includes('<') && text.includes('>');
+  $('response').innerHTML = isHtml ? text : `<pre>${text.replace(/</g, '&lt;')}</pre>`;
+}
+
+function copyResponse() {
+  const text = $('response').innerText;
+  navigator.clipboard.writeText(text);
+  const btn = document.querySelector('.fa-copy');
+  btn.className = 'fas fa-check';
+  setTimeout(() => btn.className = 'fas fa-copy', 1500);
+}
+
+function clearResponse() {
+  $('response').innerHTML = '<div class="empty"><i class="fas fa-database"></i><p>Select parameters and click Fetch<br><small style="opacity:0.6">Press ? for keyboard shortcuts</small></p></div>';
+  setStatus('idle', 'Ready', '');
+  showToolbar();
+  $('source').focus();
+}
+</script>
+
+</body>
+</html>
