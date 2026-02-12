@@ -8,36 +8,12 @@
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
 <style>
-:root {
-  --bg: #f1f5f9;
-  --surface: #ffffff;
-  --text: #1e293b;
-  --text-muted: #64748b;
-  --border: #e2e8f0;
-  --primary: #2563eb;
-  --primary-dark: #1d4ed8;
-  --success: #10b981;
-  --danger: #ef4444;
-  --shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
-}
-
-[data-theme="dark"] {
-  --bg: #0f172a;
-  --surface: #1e293b;
-  --text: #f1f5f9;
-  --text-muted: #94a3b8;
-  --border: #334155;
-  --primary: #3b82f6;
-  --primary-dark: #2563eb;
-}
-
 * { margin: 0; padding: 0; box-sizing: border-box; }
 
 html, body {
   height: 100%;
   font-family: 'Inter', sans-serif;
-  background: var(--bg);
-  color: var(--text);
+  background: #f1f5f9;
   overflow: hidden;
 }
 
@@ -48,38 +24,55 @@ html, body {
   position: relative;
 }
 
-/* Toolbar */
+/* Smart Toolbar - Auto shows on interaction */
 .toolbar {
   position: absolute;
   top: 0;
   left: 0;
   right: 0;
-  background: var(--surface);
-  border-bottom: 1px solid var(--border);
+  background: #fff;
+  border-bottom: 1px solid #e2e8f0;
   padding: 8px 12px;
   display: flex;
   align-items: end;
   gap: 8px;
   flex-wrap: wrap;
-  box-shadow: var(--shadow);
+  box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
   z-index: 100;
   transition: transform 0.3s ease;
   transform: translateY(0);
 }
 
-.toolbar.hidden { transform: translateY(-100%); }
+.toolbar.hidden {
+  transform: translateY(-100%);
+}
 
-.hover-zone {
+/* Desktop: Top 25px trigger zone */
+.desktop-trigger {
   position: absolute;
   top: 0;
   left: 0;
   right: 0;
-  height: 20px;
+  height: 25px;
   z-index: 99;
+  cursor: pointer;
 }
 
-.hover-zone:hover + .toolbar,
-.toolbar:hover { transform: translateY(0) !important; }
+.desktop-trigger:hover + .toolbar,
+.desktop-trigger:active + .toolbar {
+  transform: translateY(0) !important;
+}
+
+/* Mobile: Swipe detection area */
+.swipe-area {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 1;
+  touch-action: pan-y;
+}
 
 .toolbar-section {
   display: flex;
@@ -90,34 +83,270 @@ html, body {
 .toolbar-section-title {
   font-size: 9px;
   text-transform: uppercase;
-  color: var(--text-muted);
+  color: #64748b;
   font-weight: 700;
-  letter-spacing: 0.05em;
 }
 
 .toolbar select, .toolbar input {
   padding: 6px 8px;
-  border: 1px solid var(--border);
+  border: 1px solid #cbd5e1;
   border-radius: 6px;
   font-size: 12px;
   height: 32px;
-  background: var(--surface);
-  color: var(--text);
+  background: #fff;
   outline: none;
 }
 
-.toolbar select:focus, .toolbar input:focus {
-  border-color: var(--primary);
-  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.2);
-}
-
-.toolbar select { min-width: 140px; cursor: pointer; }
+.toolbar select { min-width: 140px; }
 .toolbar input { width: 100px; }
 .toolbar input.wide { width: 120px; }
 
 .source-select {
-  border-color: var(--primary) !important;
-  background: rgba(37, 99, 235, 0.05) !important;
+  border-color: #2563eb !important;
+  background: #eff6ff !important;
+}
+
+.btn {
+  padding: 6px 14px;
+  background: #2563eb;
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  height: 32px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.btn:hover:not(:disabled) { background: #1d4ed8; }
+.btn:disabled { opacity: 0.5; }
+
+.btn-secondary {
+  background: #fff;
+  color: #334155;
+  border: 1px solid #e2e8f0;
+}
+
+.btn-icon {
+  width: 32px;
+  padding: 0;
+  justify-content: center;
+}
+
+.status-bar {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.status-badge {
+  padding: 4px 10px;
+  border-radius: 4px;
+  font-weight: 600;
+  font-size: 11px;
+  text-transform: uppercase;
+}
+
+.idle { background: #f1f5f9; color: #64748b; }
+.fetching { background: #dbeafe; color: #2563eb; }
+.success { background: #d1fae5; color: #059669; }
+.error { background: #fee2e2; color: #dc2626; }
+
+.pulse {
+  width: 6px;
+  height: 6px;
+  background: currentColor;
+  border-radius: 50%;
+  animation: pulse 1.5s infinite;
+  display: inline-block;
+  margin-right: 4px;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.3; }
+}
+
+/* Hint bar */
+.hint-bar {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%) translateY(-100%);
+  background: rgba(0,0,0,0.8);
+  color: #fff;
+  padding: 6px 16px;
+  border-radius: 0 0 12px 12px;
+  font-size: 11px;
+  z-index: 98;
+  transition: transform 0.3s ease;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.toolbar.hidden ~ .hint-bar {
+  transform: translateX(-50%) translateY(0);
+}
+
+/* Response */
+.response-wrapper {
+  flex: 1;
+  padding: 8px;
+  padding-top: 12px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  z-index: 2;
+}
+
+.response-box {
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.response-header {
+  padding: 8px 12px;
+  background: #f8fafc;
+  border-bottom: 1px solid #e2e8f0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 12px;
+  color: #64748b;
+}
+
+.response-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.view-toggle {
+  display: flex;
+  background: #f1f5f9;
+  border-radius: 4px;
+  padding: 2px;
+  gap: 2px;
+}
+
+.view-btn {
+  padding: 4px 10px;
+  border: none;
+  background: transparent;
+  color: #64748b;
+  font-size: 11px;
+  border-radius: 3px;
+  cursor: pointer;
+}
+
+.view-btn.active {
+  background: #fff;
+  color: #1e293b;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+}
+
+.response-actions {
+  display: flex;
+  gap: 4px;
+}
+
+.icon-btn {
+  width: 28px;
+  height: 28px;
+  border: none;
+  background: transparent;
+  color: #64748b;
+  cursor: pointer;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+}
+
+.icon-btn:hover {
+  background: #e2e8f0;
+  color: #334155;
+}
+
+.response-content {
+  flex: 1;
+  overflow: auto;
+  padding: 12px;
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.response-content pre {
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  font-family: 'SF Mono', Consolas, monospace;
+  background: #f8fafc;
+  padding: 16px;
+  border-radius: 6px;
+  border: 1px solid #e2e8f0;
+  margin: 0;
+  font-size: 12px;
+}
+
+.empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: #94a3b8;
+  text-align: center;
+}
+
+.empty i {
+  font-size: 48px;
+  margin-bottom: 16px;
+  opacity: 0.3;
+}
+
+.error-box {
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  color: #991b1b;
+  padding: 16px;
+  border-radius: 6px;
+  font-size: 13px;
+}
+
+.compare-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  height: 100%;
+}
+
+.compare-panel {
+  background: #f1f5f9;
+  border-radius: 6px;
+  padding: 12px;
+  overflow: auto;
+  border: 1px solid #e2e8f0;
+}
+
+.compare-panel h4 {
+  font-size: 11px;
+  text-transform: uppercase;
+  color: #64748b;
+  margin-bottom: 8px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid #e2e8f0;
 }
 
 /* History Panel */
@@ -126,8 +355,8 @@ html, body {
   top: 100%;
   left: 12px;
   right: 12px;
-  background: var(--surface);
-  border: 1px solid var(--border);
+  background: #fff;
+  border: 1px solid #e2e8f0;
   border-radius: 8px;
   box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1);
   padding: 12px;
@@ -145,18 +374,17 @@ html, body {
   align-items: center;
   margin-bottom: 8px;
   padding-bottom: 8px;
-  border-bottom: 1px solid var(--border);
+  border-bottom: 1px solid #e2e8f0;
 }
 
 .history-title {
   font-size: 12px;
   font-weight: 600;
-  color: var(--text);
 }
 
 .history-clear {
   font-size: 11px;
-  color: var(--danger);
+  color: #ef4444;
   cursor: pointer;
   border: none;
   background: none;
@@ -173,285 +401,23 @@ html, body {
   align-items: center;
   justify-content: space-between;
   padding: 8px 12px;
-  background: var(--bg);
+  background: #f8fafc;
   border-radius: 6px;
   cursor: pointer;
   font-size: 12px;
-  transition: all 0.2s;
 }
 
-.history-item:hover {
-  background: rgba(37, 99, 235, 0.1);
-}
-
+.history-item:hover { background: #eff6ff; }
 .history-item.active {
-  border: 1px solid var(--primary);
-  background: rgba(37, 99, 235, 0.05);
+  border: 1px solid #2563eb;
+  background: #eff6ff;
 }
 
-.history-info {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
+.history-filename { font-weight: 500; }
+.history-meta { font-size: 10px; color: #64748b; }
+.history-size { font-size: 11px; color: #059669; font-weight: 600; }
 
-.history-filename {
-  font-weight: 500;
-  color: var(--text);
-}
-
-.history-meta {
-  font-size: 10px;
-  color: var(--text-muted);
-}
-
-.history-size {
-  font-size: 11px;
-  color: var(--success);
-  font-weight: 600;
-}
-
-/* Buttons */
-.btn {
-  padding: 6px 14px;
-  background: var(--primary);
-  color: #fff;
-  border: none;
-  border-radius: 6px;
-  font-size: 12px;
-  font-weight: 600;
-  cursor: pointer;
-  height: 32px;
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.btn:hover:not(:disabled) { background: var(--primary-dark); }
-.btn:disabled { opacity: 0.5; cursor: not-allowed; }
-
-.btn-secondary {
-  background: var(--surface);
-  color: var(--text);
-  border: 1px solid var(--border);
-}
-
-.btn-secondary:hover { background: var(--border); }
-
-.btn-icon {
-  width: 32px;
-  padding: 0;
-  justify-content: center;
-}
-
-/* Status */
-.status-bar {
-  margin-left: auto;
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.status-badge {
-  padding: 4px 10px;
-  border-radius: 4px;
-  font-weight: 600;
-  font-size: 11px;
-  text-transform: uppercase;
-}
-
-.idle { background: var(--border); color: var(--text-muted); }
-.fetching { background: rgba(37, 99, 235, 0.1); color: var(--primary); }
-.success { background: rgba(16, 185, 129, 0.1); color: var(--success); }
-.error { background: rgba(239, 68, 68, 0.1); color: var(--danger); }
-
-.pulse {
-  width: 6px;
-  height: 6px;
-  background: currentColor;
-  border-radius: 50%;
-  animation: pulse 1.5s infinite;
-  display: inline-block;
-  margin-right: 4px;
-}
-
-@keyframes pulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.3; }
-}
-
-.hint-bar {
-  position: absolute;
-  top: 0;
-  left: 50%;
-  transform: translateX(-50%) translateY(-100%);
-  background: rgba(0,0,0,0.8);
-  color: #fff;
-  padding: 6px 16px;
-  border-radius: 0 0 12px 12px;
-  font-size: 11px;
-  z-index: 98;
-  transition: transform 0.3s ease;
-}
-
-.toolbar.hidden ~ .hint-bar {
-  transform: translateX(-50%) translateY(0);
-}
-
-/* Response */
-.response-wrapper {
-  flex: 1;
-  padding: 8px;
-  padding-top: 12px;
-  overflow: hidden;
-  display: flex;
-  flex-direction: column;
-}
-
-.response-box {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-}
-
-.response-header {
-  padding: 8px 12px;
-  background: rgba(0,0,0,0.02);
-  border-bottom: 1px solid var(--border);
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  font-size: 12px;
-  color: var(--text-muted);
-}
-
-.response-toolbar {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.view-toggle {
-  display: flex;
-  background: var(--bg);
-  border-radius: 4px;
-  padding: 2px;
-  gap: 2px;
-}
-
-.view-btn {
-  padding: 4px 10px;
-  border: none;
-  background: transparent;
-  color: var(--text-muted);
-  font-size: 11px;
-  border-radius: 3px;
-  cursor: pointer;
-}
-
-.view-btn.active {
-  background: var(--surface);
-  color: var(--text);
-  box-shadow: 0 1px 2px rgba(0,0,0,0.1);
-}
-
-.response-actions {
-  display: flex;
-  gap: 4px;
-}
-
-.icon-btn {
-  width: 28px;
-  height: 28px;
-  border: none;
-  background: transparent;
-  color: var(--text-muted);
-  cursor: pointer;
-  border-radius: 4px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 12px;
-}
-
-.icon-btn:hover {
-  background: var(--border);
-  color: var(--text);
-}
-
-.response-content {
-  flex: 1;
-  overflow: auto;
-  padding: 12px;
-  font-size: 13px;
-  line-height: 1.6;
-}
-
-.response-content pre {
-  white-space: pre-wrap;
-  word-wrap: break-word;
-  font-family: 'SF Mono', Consolas, monospace;
-  background: var(--bg);
-  padding: 16px;
-  border-radius: 6px;
-  border: 1px solid var(--border);
-  margin: 0;
-  font-size: 12px;
-}
-
-.empty {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  height: 100%;
-  color: var(--text-muted);
-  text-align: center;
-}
-
-.empty i {
-  font-size: 48px;
-  margin-bottom: 16px;
-  opacity: 0.3;
-}
-
-.error-box {
-  background: rgba(239, 68, 68, 0.1);
-  border: 1px solid rgba(239, 68, 68, 0.2);
-  color: var(--danger);
-  padding: 16px;
-  border-radius: 6px;
-  font-size: 13px;
-}
-
-.compare-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 12px;
-  height: 100%;
-}
-
-.compare-panel {
-  background: var(--bg);
-  border-radius: 6px;
-  padding: 12px;
-  overflow: auto;
-  border: 1px solid var(--border);
-}
-
-.compare-panel h4 {
-  font-size: 11px;
-  text-transform: uppercase;
-  color: var(--text-muted);
-  margin-bottom: 8px;
-  padding-bottom: 8px;
-  border-bottom: 1px solid var(--border);
-}
-
+/* Floating buttons */
 .floating-tools {
   position: fixed;
   bottom: 20px;
@@ -467,8 +433,8 @@ html, body {
   height: 44px;
   border-radius: 50%;
   border: none;
-  background: var(--surface);
-  color: var(--text);
+  background: #fff;
+  color: #334155;
   box-shadow: 0 4px 12px rgba(0,0,0,0.15);
   cursor: pointer;
   font-size: 18px;
@@ -479,12 +445,12 @@ html, body {
 
 .fab:hover {
   transform: scale(1.1);
-  background: var(--primary);
+  background: #2563eb;
   color: #fff;
 }
 
 .fab.primary {
-  background: var(--primary);
+  background: #2563eb;
   color: #fff;
 }
 
@@ -492,8 +458,8 @@ html, body {
   position: fixed;
   bottom: 80px;
   right: 20px;
-  background: var(--surface);
-  border: 1px solid var(--border);
+  background: #fff;
+  border: 1px solid #e2e8f0;
   padding: 20px;
   border-radius: 12px;
   font-size: 12px;
@@ -504,16 +470,10 @@ html, body {
 }
 
 .keyboard-help.show { display: block; }
-
-.keyboard-help h4 {
-  margin-bottom: 16px;
-  font-size: 14px;
-  color: var(--primary);
-}
-
+.keyboard-help h4 { margin-bottom: 16px; font-size: 14px; color: #2563eb; }
 .keyboard-help kbd {
-  background: var(--bg);
-  border: 1px solid var(--border);
+  background: #f1f5f9;
+  border: 1px solid #e2e8f0;
   padding: 4px 8px;
   border-radius: 4px;
   font-family: monospace;
@@ -526,37 +486,37 @@ html, body {
   justify-content: space-between;
   margin-bottom: 10px;
   padding-bottom: 10px;
-  border-bottom: 1px solid var(--border);
+  border-bottom: 1px solid #e2e8f0;
 }
 
-.key-row:last-child {
-  border-bottom: none;
-  margin-bottom: 0;
-}
-
+.key-row:last-child { border-bottom: none; margin-bottom: 0; }
 .hidden { display: none !important; }
 
-::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
-}
-
-::-webkit-scrollbar-thumb {
-  background: var(--border);
-  border-radius: 4px;
-}
-
+/* Mobile optimizations */
 @media (max-width: 768px) {
+  .toolbar { padding: 6px; gap: 4px; }
+  .toolbar select, .toolbar input { font-size: 11px; height: 28px; }
+  .desktop-trigger { height: 50px; } /* Larger trigger for mobile */
   .compare-grid { grid-template-columns: 1fr; }
   .history-panel { left: 4px; right: 4px; }
+  .floating-tools { bottom: 10px; right: 10px; }
+  .fab { width: 40px; height: 40px; }
 }
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
 </style>
 </head>
 
 <body>
 
 <div class="app">
-  <div class="hover-zone"></div>
+  <!-- Desktop: Top 25px click trigger -->
+  <div class="desktop-trigger" onclick="showToolbar()" title="Click to show toolbar"></div>
+  
+  <!-- Mobile: Swipe detection -->
+  <div class="swipe-area" id="swipeArea"></div>
   
   <div class="toolbar" id="toolbar">
     <div class="toolbar-section">
@@ -612,16 +572,15 @@ html, body {
 
     <div class="status-bar">
       <span id="statusBadge" class="status-badge idle">Ready</span>
-      <span id="statusInfo" style="font-size:11px;color:var(--text-muted)"></span>
+      <span id="statusInfo" style="font-size:11px;color:#64748b"></span>
     </div>
 
     <input type="text" id="date_start" class="hidden">
     <input type="text" id="suffix" class="hidden">
 
-    <!-- History Panel -->
     <div class="history-panel" id="historyPanel">
       <div class="history-header">
-        <span class="history-title"><i class="fas fa-clock" style="margin-right:6px"></i>Recent Fetches (Memory)</span>
+        <span class="history-title"><i class="fas fa-clock" style="margin-right:6px"></i>Recent Fetches</span>
         <button class="history-clear" onclick="clearHistory()">Clear All</button>
       </div>
       <div class="history-list" id="historyList"></div>
@@ -630,10 +589,10 @@ html, body {
 
   <div class="hint-bar">
     <i class="fas fa-chevron-down"></i>
-    <span>Hover top for controls • H for history • ? for help</span>
+    <span id="hintText">Click top or swipe down for toolbar • H for history</span>
   </div>
 
-  <div class="response-wrapper">
+  <div class="response-wrapper" id="responseWrapper">
     <div class="response-box">
       <div class="response-header">
         <span><i class="fas fa-terminal" style="margin-right:6px"></i>Response</span>
@@ -655,7 +614,7 @@ html, body {
         <div class="empty">
           <i class="fas fa-chart-line"></i>
           <p><strong>Financial Data API Pro</strong><br>
-          Fetch data to begin • Press H for history<br>
+          Fetch data or press H for history<br>
           <small>? for keyboard shortcuts</small></p>
         </div>
       </div>
@@ -681,7 +640,7 @@ html, body {
 </div>
 
 <script>
-// Data definitions
+// Data
 const REQ_TYPES = {
   stock: ['info','intraday','daily','nse_eq','qresult','result','balance','cashflow','dividend','split','other','stock_hist'],
   index: ['indices','open','preopen','fno','fiidii','events','index_highlow','stock_highlow','bhav','largedeals','bulkdeals','blockdeals','most_active','index_history','hlargedeals','pe_pb','total_returns'],
@@ -692,15 +651,16 @@ const DEFAULT_TYPES = { stock: 'info', index: 'indices', screener: 'from_low' };
 
 // State
 const state = {
-  history: [], // In-memory storage
+  history: [],
   currentData: null,
   currentIndex: -1,
   lastFetch: null,
   view: 'html',
-  compare: false
+  compare: false,
+  isMobile: window.innerWidth <= 768
 };
 
-// DOM refs
+// DOM
 const dom = {};
 
 // Date utils
@@ -715,9 +675,8 @@ const today = () => {
   return `${String(d.getDate()).padStart(2,'0')}-${String(d.getMonth()+1).padStart(2,'0')}-${d.getFullYear()}`;
 };
 
-// Initialize
+// Init
 function init() {
-  // Cache DOM
   dom.source = document.getElementById('source');
   dom.mode = document.getElementById('mode');
   dom.req_type = document.getElementById('req_type');
@@ -734,6 +693,13 @@ function init() {
   dom.historyPanel = document.getElementById('historyPanel');
   dom.historyList = document.getElementById('historyList');
   dom.keyboardHelp = document.getElementById('keyboardHelp');
+  dom.hintText = document.getElementById('hintText');
+  dom.swipeArea = document.getElementById('swipeArea');
+  dom.responseWrapper = document.getElementById('responseWrapper');
+
+  // Detect mobile
+  checkMobile();
+  window.addEventListener('resize', checkMobile);
 
   // Theme
   if (localStorage.getItem('theme') === 'dark') toggleTheme();
@@ -741,11 +707,88 @@ function init() {
   // Events
   dom.mode.addEventListener('change', updateTypes);
   
-  // Init
+  // Swipe detection for mobile
+  initSwipeDetection();
+  
+  // Scroll detection for mobile
+  dom.responseWrapper.addEventListener('scroll', handleScroll);
+
   updateTypes();
   dom.source.focus();
 }
 
+function checkMobile() {
+  state.isMobile = window.innerWidth <= 768;
+  dom.hintText.textContent = state.isMobile 
+    ? 'Swipe down for toolbar • H for history' 
+    : 'Click top 25px for toolbar • H for history';
+}
+
+function initSwipeDetection() {
+  let touchStartY = 0;
+  let touchEndY = 0;
+  
+  dom.swipeArea.addEventListener('touchstart', (e) => {
+    touchStartY = e.changedTouches[0].screenY;
+  }, { passive: true });
+  
+  dom.swipeArea.addEventListener('touchend', (e) => {
+    touchEndY = e.changedTouches[0].screenY;
+    handleSwipe(touchStartY, touchEndY);
+  }, { passive: true });
+
+  // Also detect on response area for when content is short
+  dom.responseWrapper.addEventListener('touchstart', (e) => {
+    touchStartY = e.changedTouches[0].screenY;
+  }, { passive: true });
+  
+  dom.responseWrapper.addEventListener('touchend', (e) => {
+    touchEndY = e.changedTouches[0].screenY;
+    handleSwipe(touchStartY, touchEndY);
+  }, { passive: true });
+}
+
+function handleSwipe(startY, endY) {
+  const diff = endY - startY;
+  // Swipe down more than 50px shows toolbar
+  if (diff > 50) {
+    showToolbar();
+  }
+  // Swipe up hides toolbar
+  if (diff < -50 && !dom.historyPanel.classList.contains('show')) {
+    hideToolbar();
+  }
+}
+
+function handleScroll() {
+  // On mobile, scrolling up (scrollTop decreasing) shows toolbar
+  if (state.isMobile) {
+    const scrollTop = dom.responseWrapper.scrollTop;
+    if (scrollTop < 10) { // Near top
+      showToolbar();
+    }
+  }
+}
+
+function showToolbar() {
+  dom.toolbar.classList.remove('hidden');
+}
+
+function hideToolbar() {
+  if (!dom.historyPanel.classList.contains('show')) {
+    dom.toolbar.classList.add('hidden');
+  }
+}
+
+// Theme
+function toggleTheme() {
+  const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+  document.documentElement.setAttribute('data-theme', isDark ? 'light' : 'dark');
+  dom.themeIcon.className = isDark ? 'fas fa-moon' : 'fas fa-sun';
+  localStorage.setItem('theme', isDark ? 'light' : 'dark');
+}
+
+// Update types
 function updateTypes() {
   const mode = dom.mode.value;
   const types = REQ_TYPES[mode];
@@ -760,7 +803,6 @@ function updateTypes() {
     dom.req_type.appendChild(opt);
   });
 
-  // Defaults
   if (mode === 'stock') {
     dom.name.value = 'ITC';
     dom.date_start.value = fyStart();
@@ -774,14 +816,6 @@ function updateTypes() {
     dom.date_start.value = '';
     dom.date_end.value = '';
   }
-}
-
-// Theme
-function toggleTheme() {
-  const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
-  document.documentElement.setAttribute('data-theme', isDark ? 'light' : 'dark');
-  dom.themeIcon.className = isDark ? 'fas fa-moon' : 'fas fa-sun';
-  localStorage.setItem('theme', isDark ? 'light' : 'dark');
 }
 
 // Status
@@ -819,7 +853,7 @@ async function fetchData() {
   setStatus('fetching', '', filename);
   dom.fetchBtn.disabled = true;
   dom.historyPanel.classList.remove('show');
-  setTimeout(() => dom.toolbar.classList.add('hidden'), 800);
+  setTimeout(hideToolbar, 1000);
   
   dom.response.innerHTML = '<div class="empty"><div class="pulse" style="width:48px;height:48px;margin-bottom:16px"></div><p>Fetching...</p></div>';
 
@@ -834,7 +868,6 @@ async function fetchData() {
     const dt = Math.round(performance.now() - t0);
     const size = (blob.size / 1024).toFixed(1);
 
-    // Store in memory
     addToHistory({
       filename,
       source: sourceName,
@@ -852,21 +885,17 @@ async function fetchData() {
   } catch (err) {
     setStatus('error', 'Error', err.message);
     dom.response.innerHTML = `<div class="error-box"><strong>Failed</strong><br>${err.message}</div>`;
-    dom.toolbar.classList.remove('hidden');
+    showToolbar();
   } finally {
     dom.fetchBtn.disabled = false;
   }
 }
 
-// History management
+// History
 function addToHistory(item) {
-  // Remove duplicate if exists
   state.history = state.history.filter(h => h.filename !== item.filename);
-  // Add to front
   state.history.unshift(item);
-  // Keep only last 10
   if (state.history.length > 10) state.history.pop();
-  
   renderHistory();
 }
 
@@ -891,15 +920,15 @@ function loadHistory(index) {
   render(item.data);
   setStatus('success', 'Cached', `${item.source} • ${item.size} • ${item.time}`);
   dom.historyPanel.classList.remove('show');
-  dom.toolbar.classList.add('hidden');
-  renderHistory(); // Update active state
+  hideToolbar();
+  renderHistory();
 }
 
 function toggleHistory() {
   dom.historyPanel.classList.toggle('show');
   if (dom.historyPanel.classList.contains('show')) {
     renderHistory();
-    dom.toolbar.classList.remove('hidden');
+    showToolbar();
   }
 }
 
@@ -919,14 +948,8 @@ function render(text) {
   if (state.compare) {
     dom.response.innerHTML = `
       <div class="compare-grid">
-        <div class="compare-panel">
-          <h4>Rendered</h4>
-          ${isHtml ? text : `<pre>${esc(text)}</pre>`}
-        </div>
-        <div class="compare-panel">
-          <h4>Source</h4>
-          <pre style="font-size:11px">${esc(text)}</pre>
-        </div>
+        <div class="compare-panel"><h4>Rendered</h4>${isHtml ? text : `<pre>${esc(text)}</pre>`}</div>
+        <div class="compare-panel"><h4>Source</h4><pre style="font-size:11px">${esc(text)}</pre></div>
       </div>
     `;
     return;
@@ -986,8 +1009,8 @@ function clearResponse() {
   state.currentIndex = -1;
   dom.response.innerHTML = `<div class="empty"><i class="fas fa-chart-line"></i><p><strong>Ready</strong><br>Fetch data or press H for history<br><small>? for help</small></p></div>`;
   setStatus('idle', 'Ready', '');
-  dom.toolbar.classList.remove('hidden');
   dom.historyPanel.classList.remove('show');
+  showToolbar();
   dom.source.focus();
 }
 
@@ -1039,7 +1062,7 @@ document.addEventListener('keydown', (e) => {
   }
 });
 
-// Close history on outside click
+// Click outside to close history
 document.addEventListener('click', (e) => {
   if (!e.target.closest('.toolbar') && !e.target.closest('.fab')) {
     dom.historyPanel.classList.remove('show');
